@@ -1,14 +1,27 @@
-numpy==1.26.4
-pandas==2.2.2
+# ===============================================
+# Requisitos do projeto: extrair-transformar-dados
+# ===============================================
+
+# --- Core Python ---
 python-dotenv==1.0.1
-requests==2.32.3
-aiohttp==3.9.5
-streamlit==1.39.0
-numpy==1.26.4
-pandas==2.2.2
-python-dotenv==1.0.1
-requests==2.32.3
-aiohttp==3.9.5
-fastapi==0.110.0
-uvicorn==0.29.0
+pandas==2.2.3
+numpy==2.1.2
+tqdm==4.67.1
+
+# --- CLI / Terminal ---
+click==8.1.7
+typer==0.12.3
+rich==13.9.4
+
+# --- API IQ Option ---
+# O pacote abaixo é opcional se você já tiver a pasta local "iqoptionapi/"
+# Caso contrário, remova o comentário da linha a seguir para instalar via pip:
+# iqoptionapi==1.1.1
+
+# --- Outras libs úteis ---
 pydantic==2.6.4
+uvicorn==0.29.0
+
+# --- Dev/Build ---
+setuptools>=68
+wheel>=0.41

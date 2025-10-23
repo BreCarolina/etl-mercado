@@ -1,202 +1,204 @@
-# @title Script de Extração de dados IqOption✅
+# -*- coding: utf-8 -*-
+"""
+Script: scripts/extrair_dados.py
+Extrai candles da IQ Option de forma portátil (sem /content) e salva em data/raw/.
+Filtra 07h–21h UTC e descarta candles “futuros” (candle ainda em formação).
+"""
 
-from dotenv import load_dotenv
+from __future__ import annotations
+
 import os
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
-
-import time
-import pandas as pd
-from datetime import datetime, timezone
 import sys
+import time
+from pathlib import Path
+from typing import Optional, Tuple
 
-"""
-Script: extrair_dados.py
+import pandas as pd
+from dotenv import load_dotenv
 
-Descrição:
------------
-Conecta-se à API da IQ Option e extrai candles históricos do par configurado,
-sempre até o último candle fechado (sem puxar dados futuros).
+# ------------------------------------------------------------
+# Caminhos do projeto (portátil)
+# ------------------------------------------------------------
+ROOT: Path = Path(__file__).resolve().parents[1]
+DATA_DIR: Path = ROOT / "data"
+RAW_DIR: Path = DATA_DIR / "raw"
+TRANS_DIR: Path = DATA_DIR / "transformed"
+RAW_DIR.mkdir(parents=True, exist_ok=True)
+TRANS_DIR.mkdir(parents=True, exist_ok=True)
 
-Repetição automática em chamadas vazias (até 3 tentativas).
-Log informativo mostrando progresso durante coleta.
-Mensagem clara quando histórico realmente termina.
-Impressão do total de dias e candles coletados.
+# ------------------------------------------------------------
+# .env e parâmetros
+# ------------------------------------------------------------
+load_dotenv(dotenv_path=ROOT / ".env", override=True)
 
-"""
+IQ_EMAIL: Optional[str] = os.getenv("IQ_EMAIL")
+IQ_PASSWORD: Optional[str] = os.getenv("IQ_PASSWORD")
+PAR_DEFAULT: str = os.getenv("PAR", "EURUSD")
+TIMEFRAME_DEFAULT: int = int(os.getenv("TIMEFRAME", "300"))  # seg (300 = M5)
+DIAS_DEFAULT: int = int(os.getenv("DIAS", "360"))
 
-# -------------------- Configurações -------------------- #
+# ------------------------------------------------------------
+# Import da API: aceita 'iqoptionaapi' OU 'iqoptionapi'
+# Preferência: pacote local no repositório; senão, o que estiver instalado.
+# ------------------------------------------------------------
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-PAR = "EURUSD"             # Ativo
-TIMEFRAME = 300            # 5 minutos
-DIAS = 360                 # Quantos dias de histórico (máximo desejado)
-ROOT = "/content/drive/MyDrive/Projetos/extrair-transformar-dados"
-
-# Carrega credenciais do arquivo .env na pasta raiz do projeto
-load_dotenv(os.path.join(ROOT, ".env"))
-IQ_EMAIL = os.getenv("IQ_EMAIL")
-IQ_PASSWORD = os.getenv("IQ_PASSWORD")
-
-# Import robusto da API (usando o diretório pai que contém 'iqoptionapi')
-# Além disso, criamos um alias 'iqoptionaapi' -> 'iqoptionapi' para compatibilidade
-local_pkg_root = ROOT
-if os.path.isdir(os.path.join(local_pkg_root, "iqoptionapi")) and local_pkg_root not in sys.path:
-    sys.path.insert(0, local_pkg_root)
+pkg_name = None
+if (ROOT / "iqoptionaapi").is_dir():
+    pkg_name = "iqoptionaapi"
+elif (ROOT / "iqoptionapi").is_dir():
+    pkg_name = "iqoptionapi"
+else:
+    # tenta qualquer um instalado via pip
+    try:
+        import iqoptionaapi  # type: ignore
+        pkg_name = "iqoptionaapi"
+    except Exception:
+        pkg_name = "iqoptionapi"
 
 try:
-    import importlib
-    try:
-        import iqoptionapi as _iqapi_local
-        sys.modules.setdefault("iqoptionaapi", _iqapi_local)
-    except Exception:
-        pass
-
-    from iqoptionapi.stable_api import IQ_Option
-    import iqoptionapi.stable_api as _iqmod
+    if pkg_name == "iqoptionaapi":
+        from iqoptionaapi.stable_api import IQ_Option  # type: ignore
+        import iqoptionaapi.stable_api as _iqmod      # type: ignore
+    else:
+        from iqoptionapi.stable_api import IQ_Option  # type: ignore
+        import iqoptionapi.stable_api as _iqmod       # type: ignore
     print(f"[INFO] IQ Option API carregada de: {_iqmod.__file__}")
-except Exception as e_local:
-    try:
-        import iqoptionapi as _iqapi_pip
-        sys.modules.setdefault("iqoptionaapi", _iqapi_pip)
+except Exception as e:
+    raise ImportError(
+        "Não foi possível importar 'IQ_Option' de iqoptionaapi/iqoptionapi. "
+        "Confirme a pasta no projeto ou instale via pip. "
+        f"Detalhe: {e}"
+    )
 
-        from iqoptionapi.stable_api import IQ_Option
-        import iqoptionapi.stable_api as _iqmod
-        print(f"[INFO] IQ Option API (pip) carregada de: {_iqmod.__file__}")
-    except Exception as e_pip:
-        raise ImportError(
-            "Não foi possível importar 'IQ_Option'. "
-            f"Verifique o diretório local '{os.path.join(local_pkg_root, 'iqoptionapi')}' "
-            "ou instale via pip: pip install iqoptionapi. "
-            f"Erros: local={e_local} | pip={e_pip}"
-        )
+# ------------------------------------------------------------
+# Utilitários
+# ------------------------------------------------------------
+def _agora_alinhado(timeframe: int) -> int:
+    """Epoch (segundos) do último candle fechado, alinhado ao timeframe."""
+    agora = int(time.time())
+    return agora - (agora % timeframe)
 
-# -------------------- Funções -------------------- #
+def _descarta_futuros(df: pd.DataFrame, timeframe: int) -> pd.DataFrame:
+    """
+    Garante que o último candle esteja fechado (sem dados futuros).
+    Remove candles cujo fechamento ainda não ocorreu (ex.: candle em formação).
+    """
+    if df.empty:
+        return df
+    limite = pd.Timestamp.now(tz="UTC")  # timezone-aware em UTC
+    df_filtrado = df[df["from"] + pd.to_timedelta(timeframe, unit="s") <= limite]
+    removidos = len(df) - len(df_filtrado)
+    if removidos > 0:
+        print(f"[INFO] {removidos} candles futuros descartados.")
+    return df_filtrado
 
-# Conecta à API da IQ Option usando as credenciais fornecidas
-def conectar_api():
-    api = IQ_Option(IQ_EMAIL, IQ_PASSWORD)
-    conectado, _ = api.connect()
-    if not conectado:
-        raise SystemExit("Erro: não foi possível conectar à IQ Option.")
-    print("Conectado com sucesso.")
+def conectar_api(email: str, senha: str) -> "IQ_Option":
+    if not email or not senha:
+        raise RuntimeError("Faltam IQ_EMAIL e/ou IQ_PASSWORD no .env.")
+    api = IQ_Option(email, senha)
+    ok, _ = api.connect()
+    if not ok:
+        raise RuntimeError("Falha na conexão com a IQ Option.")
+    print("[INFO] Conectado com sucesso.")
     return api
 
-
-# Busca candles em blocos de até 1000, alinhados ao último candle fechado
-# Retorna DataFrame com colunas padronizadas em ordem cronológica
-def buscar_candles(api, par, timeframe, total_candles):
+def buscar_candles(api: "IQ_Option", par: str, timeframe: int, total_candles: int) -> pd.DataFrame:
+    """
+    Busca candles em blocos (máx 1000 por chamada), retrocedendo a partir do último fechado.
+    Faz até 3 tentativas quando a chamada vem vazia.
+    """
     max_por_chamada = 1000
-    todos_candles = []
-
-    agora = int(time.time())
-    agora -= agora % timeframe
-
+    todos = []
+    cursor = _agora_alinhado(timeframe)
     restante = int(total_candles)
+
     while restante > 0:
         qtd = min(max_por_chamada, restante)
+
         tentativas = 3
         candles = None
-
         while tentativas > 0:
-            candles = api.get_candles(par, timeframe, qtd, agora)
+            candles = api.get_candles(par, timeframe, qtd, cursor)
             if candles:
                 break
             tentativas -= 1
-            print(f"[WARN] Chamada vazia, tentando novamente... ({3 - tentativas}/3)")
-            time.sleep(1)
+            print(f"[WARN] chamada vazia; nova tentativa ({3 - tentativas}/3)")
+            time.sleep(1.0)
 
         if not candles:
-            print("[INFO] Histórico terminou. Nenhum candle adicional disponível.")
+            print("[INFO] Histórico terminou (sem novos candles).")
             break
 
-        todos_candles.extend(candles)
-        agora = candles[0]["from"] - 1
+        todos.extend(candles)
+        cursor = candles[0]["from"] - 1
         restante -= qtd
-        print(f"[INFO] Coletados {len(todos_candles)} candles até agora...")
+        print(f"[INFO] acumulado: {len(todos)} candles...")
 
-    df = pd.DataFrame(todos_candles)
-    if df.empty:
-        return df
+    if not todos:
+        return pd.DataFrame()
 
+    df = pd.DataFrame(todos)
     df["from"] = pd.to_datetime(df["from"], unit="s", utc=True)
 
-    df = df.rename(columns={
-        "open": "abertura",
-        "max": "maxima",
-        "min": "minima",
-        "close": "fechamento"
-    })
+    df = df.rename(
+        columns={"open": "abertura", "max": "maxima", "min": "minima", "close": "fechamento"}
+    )
     df = df[["from", "abertura", "maxima", "minima", "fechamento", "volume"]]
-
     df = df.drop_duplicates(subset=["from"]).sort_values("from").reset_index(drop=True)
-
-    # Descarta candles futuros (garante que o último esteja fechado)
-    agora_ts = pd.Timestamp.now(tz="UTC")
-    antes = len(df)
-    df = df[df["from"] + pd.to_timedelta(timeframe, unit="s") <= agora_ts]
-    descartados = antes - len(df)
-    if descartados > 0:
-        print(f"[INFO] {descartados} candles futuros descartados.")
-
+    df = _descarta_futuros(df, timeframe)
     return df
 
+def filtrar_periodo_liquido(df: pd.DataFrame) -> pd.DataFrame:
+    """Mantém 07:00–21:00 UTC independente do timeframe."""
+    if df.empty:
+        return df
+    return df.set_index("from").between_time("07:00", "21:00").reset_index()
 
-# Filtra o período líquido 07h–21h UTC (independente do timeframe)
-def filtrar_periodo_liquido(df):
-    df = df.set_index("from")
-    df = df.between_time("07:00", "21:00")
-    return df.reset_index()
-
-
-# Extrai candles e salva/mescla em CSV dentro de {root}/data/raw
-# Não usa valores padrão: exige par, timeframe, dias e root explicitamente
-def extrair_dados(par, timeframe, dias, root):
-    if par is None or timeframe is None or dias is None or root is None:
-        print("(PARAMETROS NAO FORNECIDOS, INCLUA O TIMEFRAME , DIAS , E PATH RAIZ DO PROJETO)")
+def extrair_dados(par: str, timeframe: int, dias: int) -> Tuple[pd.DataFrame, Optional[Path]]:
+    """
+    Extrai candles, filtra 07–21 UTC e salva/mescla CSV em data/raw/.
+    Retorna (DataFrame, caminho_csv|None).
+    """
+    if not par or not timeframe or not dias:
+        print("[ERRO] Parâmetros inválidos. Informe par, timeframe e dias.")
         return pd.DataFrame(), None
 
-    raw_dir = os.path.join(root, "data", "raw")
-    os.makedirs(raw_dir, exist_ok=True)
-
     candles_por_dia = int((24 * 60) / (timeframe / 60))
-    total_candles = dias * candles_por_dia
-    print(f"[INFO] Baixando {dias} dias solicitados (~{total_candles} candles em M{timeframe//60})...")
+    total = dias * candles_por_dia
+    print(f"[INFO] alvo: {dias} dias (~{total} candles) em M{timeframe // 60} de {par}")
 
-    api = conectar_api()
-    df = buscar_candles(api, par, timeframe, total_candles)
-
+    api = conectar_api(IQ_EMAIL, IQ_PASSWORD)
+    df = buscar_candles(api, par, timeframe, total)
     if df.empty:
         print("[AVISO] Nenhum candle retornado.")
         return df, None
 
-    # Filtro período líquido 07h–21h UTC
     df = filtrar_periodo_liquido(df)
 
-    # Calcula a quantidade REAL de dias coletados
-    dias_coletados = (df["from"].max() - df["from"].min()).days
+    dias_efetivos = (df["from"].max() - df["from"].min()).days
+    saida = RAW_DIR / f"{par}_M{timeframe // 60}_{dias_efetivos}d.csv"
 
-    # Agora sim define o caminho de saída usando os dias REAIS
-    caminho_csv = os.path.join(raw_dir, f"{par}_M{timeframe//60}_{dias_coletados}d.csv")
-
-    # Mescla incremental se já existir arquivo com o mesmo nome (mesma faixa efetiva)
-    if os.path.exists(caminho_csv):
-        antigo = pd.read_csv(caminho_csv, parse_dates=["from"])
+    # Mescla incremental caso já exista um arquivo com mesmo prefixo (mesma faixa efetiva)
+    if saida.exists():
+        antigo = pd.read_csv(saida, parse_dates=["from"])
         df = pd.concat([antigo, df], ignore_index=True)
         df = df.drop_duplicates(subset=["from"]).sort_values("from").reset_index(drop=True)
 
-    df.to_csv(caminho_csv, index=False)
-    print(f"[OK] Dados salvos em {caminho_csv}")
-    print(f"[INFO] Dias solicitados: {dias} | Dias efetivos: {dias_coletados} | Candles: {len(df)}.")
+    df.to_csv(saida, index=False)
+    print(f"[OK] salvo: {saida}")
+    print(f"[INFO] dias_solicitados={dias} | dias_efetivos={dias_efetivos} | candles={len(df)}")
+    return df, saida
 
-    return df, caminho_csv
-
-
-# Execução direta: parâmetros configuráveis passados explicitamente
+# ------------------------------------------------------------
+# Execução direta
+# ------------------------------------------------------------
 if __name__ == "__main__":
-    PAR = "EURGBP"            # Ativo
-    TIMEFRAME = 300           # 5 minutos
-    DIAS = 360                # Histórico solicitado em dias
-    ROOT = "/content/drive/MyDrive/Projetos/extrair-transformar-dados"
+    par = PAR_DEFAULT
+    timeframe = TIMEFRAME_DEFAULT
+    dias = DIAS_DEFAULT
 
-    dados, path = extrair_dados(PAR, TIMEFRAME, DIAS, ROOT)
+    dados, caminho = extrair_dados(par, timeframe, dias)
     if isinstance(dados, pd.DataFrame) and not dados.empty:
         print(dados.tail())
