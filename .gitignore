@@ -1,8 +1,10 @@
 .venv/
-.env
+venv/
+__pycache__/
+*.egg-info/
+.data/
+.data*/
 data/raw/
 data/transformed/
-__pycache__/
-*.pyc
-.DS_Store
-
+.env
+env
