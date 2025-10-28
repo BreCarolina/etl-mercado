@@ -20,3 +20,10 @@ data/transformed/
 
 # macOS
 .DS_Store
+.DS_Store
+venv/
+__pycache__/
+*.pyc
+data/raw/
+data/transformed/
+data/*.db
