@@ -1,10 +1,29 @@
-.venv/
-venv/
+# Python / build
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
 *.egg-info/
-.data/
-.data*/
+dist/
+build/
+
+# Virtual env
+venv/
+.env
+
+# Dados locais
 data/raw/
 data/transformed/
-.env
-env
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+.DS_Store
+venv/
+__pycache__/
+*.pyc
+data/raw/
+data/transformed/
+data/*.db
