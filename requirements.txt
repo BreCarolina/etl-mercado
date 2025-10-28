@@ -1,24 +1,26 @@
 # ===============================================
 # Requisitos do projeto: extrair-transformar-dados
+# Ambiente alvo: Python 3.12
 # ===============================================
 
-# --- Core Python ---
+# --- Core Python / ETL ---
 python-dotenv==1.0.1
 pandas==2.2.3
 numpy==2.1.2
 tqdm==4.67.1
 
-# --- CLI / Terminal ---
+# --- CLI / Terminal (opcional; nossa CLI usa argparse) ---
 click==8.1.7
 typer==0.12.3
 rich==13.9.4
 
-# --- API IQ Option ---
-# O pacote abaixo é opcional se você já tiver a pasta local "iqoptionapi/"
-# Caso contrário, remova o comentário da linha a seguir para instalar via pip:
+# --- GUI ---
+streamlit==1.39.0
+
+# --- API IQ Option (opcional) ---
 # iqoptionapi==1.1.1
 
-# --- Outras libs úteis ---
+# --- Outras libs úteis (opcional) ---
 pydantic==2.6.4
 uvicorn==0.29.0
 
