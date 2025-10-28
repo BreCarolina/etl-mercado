@@ -1,3 +1,30 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "extrair-transformar-dados"
+version = "0.1.0"
+description = "Pipeline de extração e transformação de dados de mercado"
+authors = [{ name = "Carol Brescowitt" }]
+license = { text = "MIT" }
+requires-python = ">=3.12"
+readme = "Readme.md"
+dependencies = [
+  "python-dotenv>=1.0.1",
+  "pandas>=2.2.3",
+  "numpy>=2.1.2",
+  "tqdm>=4.67.1",
+  "streamlit>=1.39.0",
+]
+
+[project.scripts]
+etd = "cli:main_cli"
+
+[tool.setuptools]
+# Inclui módulos soltos (sem __init__.py)
+py-modules = ["cli", "main", "gui"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["iqoptionaapi*", "scripts*"]
