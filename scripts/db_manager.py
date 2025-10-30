@@ -93,3 +93,76 @@ def upsert_candles(
 if __name__ == "__main__":
     init_db()
     print(f"Banco inicializado em {DB_PATH_DEFAULT}")
+
+# ============================================================
+# Função utilitária adicionada para leitura incremental
+# ============================================================
+import sqlite3
+from contextlib import closing
+from typing import Optional
+
+def get_last_timestamp(pair: str, timeframe_s: int, db_path: str = "data/market_data.db") -> Optional[int]:
+    """
+    Retorna o maior timestamp (UTC epoch) existente em candles para (pair, timeframe_s).
+    Se não houver registros, retorna None.
+    """
+    with closing(sqlite3.connect(db_path)) as con:
+        cur = con.cursor()
+        row = cur.execute(
+            "SELECT MAX(ts) FROM candles WHERE pair=? AND timeframe_s=?",
+            (pair, timeframe_s),
+        ).fetchone()
+        return row[0] if row else None
+
+# ============================================================
+# Exportar dados do banco para CSV
+# ============================================================
+import pandas as pd
+
+def export_to_csv(
+    pair: str,
+    timeframe_s: int,
+    dias: int = 30,
+    features: Optional[list[str]] = None,
+    db_path: Path | str = DB_PATH_DEFAULT
+) -> Path:
+    """
+    Exporta candles (e opcionalmente features) de (pair, timeframe_s) 
+    dos últimos N dias para um CSV em data/exported/.
+    """
+    db_path = Path(db_path)
+    out_dir = Path("data/exported")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{pair}_{timeframe_s}_{dias}d.csv"
+
+    with get_conn(db_path) as conn:
+        # Seleciona candles básicos
+        base_query = """
+            SELECT pair, timeframe_s, ts, abertura, maxima, minima, fechamento, volume
+            FROM candles
+            WHERE pair=? AND timeframe_s=? 
+              AND ts >= strftime('%s','now') - (? * 86400)
+            ORDER BY ts DESC
+        """
+        df = pd.read_sql_query(base_query, conn, params=(pair, timeframe_s, dias))
+
+        # Se houver tabela de features e o usuário quiser colunas extras
+        if features:
+            try:
+                feat_df = pd.read_sql_query(
+                    f"SELECT * FROM candles_features WHERE pair=? AND timeframe_s=?",
+                    conn,
+                    params=(pair, timeframe_s),
+                )
+                if not feat_df.empty:
+                    # junta por ts
+                    df = df.merge(feat_df, on=["pair", "timeframe_s", "ts"], how="left")
+                    # mantém apenas colunas desejadas
+                    cols_keep = [c for c in df.columns if (c in features) or c in ["pair", "timeframe_s", "ts"]]
+                    df = df[cols_keep]
+            except Exception as e:
+                print(f"Aviso: não foi possível juntar features ({e})")
+
+        df.to_csv(out_path, index=False)
+        print(f"✔ Exportado para {out_path}")
+        return out_path
