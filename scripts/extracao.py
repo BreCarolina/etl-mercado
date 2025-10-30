@@ -14,6 +14,16 @@ from typing import Optional, Tuple
 import pandas as pd
 from dotenv import load_dotenv
 
+# --- log em tempo real no terminal/GUI ---
+import sys, os
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(line_buffering=True)
+    os.environ["PYTHONUNBUFFERED"] = "1"
+except Exception:
+    pass
+
+
 # Caminhos
 ROOT = Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "data" / "raw"
@@ -39,7 +49,7 @@ try:
     else:
         from iqoptionapi.stable_api import IQ_Option
         import iqoptionapi.stable_api as _iqmod
-    print(f"[INFO] IQ Option API carregada de: {_iqmod.__file__}")
+    print(f"[INFO] IQ Option API carregada de: {_iqmod.__file__}", flush=True)
 except Exception as e:
     raise ImportError(f"Falha ao importar IQ_Option. Detalhe: {e}")
 
@@ -69,7 +79,7 @@ def conectar_api(email: Optional[str], senha: Optional[str]) -> "IQ_Option":
     ok, _ = api.connect()
     if not ok:
         raise RuntimeError("Falha na conexão com a IQ Option.")
-    print("[INFO] Conectado com sucesso.")
+    print("[INFO] Conectado com sucesso.", flush=True)
     return api
 
 def buscar_candles(api: "IQ_Option", par: str, timeframe: int, total: int) -> pd.DataFrame:
@@ -91,7 +101,7 @@ def buscar_candles(api: "IQ_Option", par: str, timeframe: int, total: int) -> pd
         todos.extend(candles)
         cursor = candles[0]["from"] - 1
         total -= qtd
-        print(f"[INFO] {len(todos)} candles acumulados...")
+        print(f"[INFO] {len(todos)} candles acumulados...", flush=True)
 
     if not todos:
         return pd.DataFrame()
@@ -113,17 +123,17 @@ def extrair_dados(par: str, timeframe: int, dias: int,
                   email: Optional[str] = None, senha: Optional[str] = None) -> Tuple[pd.DataFrame, Optional[Path]]:
     """Extrai candles e salva CSV em data/raw."""
     if not par or not timeframe or not dias:
-        print("[ERRO] Parâmetros inválidos.")
+        print("[ERRO] Parâmetros inválidos.", flush=True)
         return pd.DataFrame(), None
 
     candles_dia = int((24 * 60) / (timeframe / 60))
     total = dias * candles_dia
-    print(f"[INFO] {dias} dias (~{total} candles) em M{timeframe // 60} de {par}")
+    print(f"[INFO] {dias} dias (~{total} candles) em M{timeframe // 60} de {par}", flush=True)
 
     api = conectar_api(email, senha)
     df = buscar_candles(api, par, timeframe, total)
     if df.empty:
-        print("[AVISO] Nenhum candle retornado.")
+        print("[AVISO] Nenhum candle retornado.", flush=True)
         return df, None
 
     df = filtrar_periodo_liquido(df)
@@ -136,10 +146,10 @@ def extrair_dados(par: str, timeframe: int, dias: int,
         df = df.drop_duplicates(subset=["from"]).sort_values("from").reset_index(drop=True)
 
     df.to_csv(saida, index=False)
-    print(f"[OK] salvo: {saida}")
+    print(f"[OK] salvo: {saida}", flush=True)
     return df, saida
 
 if __name__ == "__main__":
     dados, caminho = extrair_dados(PAR_DEFAULT, TIMEFRAME_DEFAULT, DIAS_DEFAULT, IQ_EMAIL_ENV, IQ_PASSWORD_ENV)
     if not dados.empty:
-        print(dados.tail())
+        print(dados.tail(), flush=True)
