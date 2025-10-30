@@ -2,237 +2,191 @@
 
 # **Documento de Escopo do Projeto**
 
-### Projeto: *ETL de Mercado – Coleta, Transformação e Carga de Dados Financeiros*  
-### Versão: 1.1  
-### Data: [Planejamento Inicial]  
-### Responsável Técnica: Equipe de Ciência de Dados e Desenvolvimento  
+### Projeto: *ETL de Mercado – Extração, Transformação e Carga de Dados Financeiros*
+
+### Versão: 2.2
+
+### Data: [Atualização – Estrutura Final GUI + Arquitetura Modular Consolidada]
+
+### Responsável Técnica: Equipe de Ciência de Dados e Desenvolvimento
 
 ---
 
 ## **1. Visão Geral**
 
-O **ETL de Mercado** é uma aplicação desktop multiplataforma desenvolvida em **Python 3.12** que automatiza a coleta, transformação e persistência de **dados de candles financeiros** obtidos via **API da corretora IQ Option**.
+O **ETL de Mercado** é uma aplicação em **Python 3.12** que automatiza o ciclo completo de **extração**, **transformação** e **carga** de **dados de candles financeiros** provenientes da **API da IQ Option**, com persistência em **SQLite3** e exportação personalizável em **CSV**.
 
-A ferramenta visa oferecer uma solução de fácil uso para analistas e traders, permitindo criar datasets prontos para **modelagem preditiva** ou análise exploratória, com foco em automação e reprodutibilidade.
+O sistema foi projetado sob uma **arquitetura modular**, com separação clara entre camadas de dados, lógica e interface, oferecendo duas formas de operação:
 
-O projeto será desenvolvido de forma incremental (MVPs), com entregas progressivas, testáveis e tecnicamente documentadas.
+* **CLI (linha de comando)** para automação e integração.
+* **GUI (interface gráfica em PySide6)** com tema escuro profissional (preto/laranja).
+
+A aplicação serve como modelo base para pipelines ETL reutilizáveis e compatíveis com múltiplos provedores de dados.
 
 ---
 
 ## **2. Objetivos**
 
 ### 2.1. Objetivo Geral
-Desenvolver uma aplicação local capaz de **extrair dados de mercado em tempo real**, **transformá-los automaticamente** e **armazená-los de forma persistente** para uso em análises e modelos preditivos.
+
+Automatizar o fluxo ETL de dados de mercado financeiro, garantindo coleta incremental, armazenamento persistente e exportação flexível em formato estruturado.
 
 ### 2.2. Objetivos Específicos
-- Extrair e armazenar candles de ativos financeiros via API.  
-- Aplicar transformações e cálculos de indicadores técnicos (EMA, RSI, SR, volatilidade).  
-- Fornecer uma interface gráfica intuitiva (PySide6) para operação manual.  
-- Garantir persistência de dados incremental em banco **SQLite3**.  
-- Permitir exportação de datasets em **CSV**.  
-- Empacotar a aplicação como executável autônomo para macOS e Windows.  
+
+* Extrair candles históricos de múltiplos pares e timeframes via API.
+* Realizar transformações com indicadores técnicos essenciais (EMA, RSI, SR, volatilidade).
+* Persistir os dados em banco local SQLite no modo WAL.
+* Gerar CSVs consolidados, configuráveis por features e período.
+* Operar com robustez, controle de duplicação e logs em tempo real.
 
 ---
 
 ## **3. Arquitetura e Tecnologias**
 
 ### 3.1. Estrutura Modular
-O sistema será organizado em camadas independentes e reutilizáveis:
 
-| Camada | Função Principal |
-|--------|------------------|
-| **Extração** | Comunicação com API e coleta de candles |
-| **Transformação** | Cálculo de indicadores e limpeza de dados |
-| **Persistência** | Salvamento incremental em CSV e SQLite |
-| **Interface (GUI/CLI)** | Interação com o usuário |
-| **Empacotamento** | Geração de executável desktop autônomo |
+| Módulo                     | Função                                                        | Local      |
+| -------------------------- | ------------------------------------------------------------- | ---------- |
+| `scripts/extracao.py`      | Coleta de candles via IQ Option API                           | `/scripts` |
+| `scripts/transformacao.py` | Geração de features e cálculo de indicadores técnicos         | `/scripts` |
+| `scripts/carga.py`         | Carga incremental no banco SQLite e controle de duplicação    | `/scripts` |
+| `scripts/db_manager.py`    | Interface de persistência e exportação de dados               | `/scripts` |
+| `main.py`                  | Interface CLI de orquestração completa do pipeline            | Raiz       |
+| `gui.py`                   | Interface gráfica moderna (PySide6) com controle total do ETL | Raiz       |
 
-### 3.2. Tecnologias Base
-| Componente | Tecnologia |
-|-------------|-------------|
-| Linguagem | Python 3.12 |
-| Interface | PySide6 (Qt) |
-| ETL | pandas, numpy |
-| Configuração | python-dotenv |
-| Banco Local | SQLite3 |
-| Empacotamento | PyInstaller / Py2App |
-| API Broker | IQ Option API |
+### 3.2. Tecnologias
 
----
-
-## **4. Escopo Funcional por Etapa (MVPs)**
-
-### **MVP 1 – CLI Funcional (Protótipo Técnico)**
-**Objetivo:** validar a pipeline de extração e transformação de dados em ambiente de terminal.
-
-#### Entregas:
-1. **Extração (`extrair_dados.py`)**
-   - Conexão com API da IQ Option.  
-   - Parâmetros: `par`, `timeframe`, `dias`.  
-   - Geração de arquivo CSV em `data/raw/`.  
-   - Logs detalhados no terminal.
-
-2. **Transformação (`transformar_dados.py`)**
-   - Leitura de CSV bruto.  
-   - Cálculo de indicadores (EMA, RSI, Volatilidade, SR).  
-   - Normalização e limpeza.  
-   - Salvamento em `data/transformed/`.
-
-3. **Interface de Linha de Comando (`cli.py` / `main.py`)**
-   - Execuções possíveis:
-     ```
-     python main.py --extrair
-     python main.py --transformar
-     python main.py --pipeline
-     ```
-   - Logs coloridos e estruturados.
-
-#### Critérios de Aceitação:
-- Execução sem falhas em extração e transformação.  
-- Geração correta de arquivos CSV.  
-- Execução média < 5 minutos para 300 dias (M5).  
+| Componente    | Tecnologia                     |
+| ------------- | ------------------------------ |
+| Linguagem     | Python 3.12                    |
+| ETL           | pandas, numpy                  |
+| Banco Local   | SQLite3 (modo WAL)             |
+| Interface     | CLI (argparse) e GUI (PySide6) |
+| Empacotamento | PyInstaller / Py2App           |
+| API Broker    | IQ Option API                  |
+| Configuração  | python-dotenv                  |
 
 ---
 
-### **MVP 2 – Interface Gráfica (PySide6)**
-**Objetivo:** permitir operação por interface desktop, sem depender do terminal.
+## **4. Escopo Funcional**
 
-#### Entregas:
-1. **Interface Qt (`gui.py`)**
-   - Layout moderno (tema escuro preto/laranja).  
-   - Ícone próprio (`assets/icone.icns`).  
-   - Login via credenciais IQ Option (manual ou `.env`).  
-   - Abas funcionais:
-     - **Extração:** parâmetros (ativo, timeframe, dias).  
-     - **Transformação:** seleção de arquivo e execução.  
-     - **Pipeline:** execução completa (extração + transformação).  
-     - **Arquivos:** listagem, abertura e gerenciamento.  
+### **4.1 – Estrutura da GUI**
 
-2. **Funcionalidades**
-   - Logs em tempo real exibidos na interface.  
-   - Status de conexão dinâmico (conectado / erro).  
-   - Mensagens modais de sucesso ou falha.  
-   - Atualização automática da aba “Arquivos”.  
-   - Abertura direta de pastas no sistema operacional.
+A interface gráfica foi desenvolvida em **PySide6**, com design limpo, tema escuro e acentuação laranja.
+Todas as operações ETL podem ser realizadas visualmente, com feedback em tempo real no painel de log.
 
-3. **UX e Design**
-   - Layout responsivo e escalável.  
-   - Paleta e tipografia consistentes.  
-   - Feedback visual em todos os botões.
+#### **Abas e Funções**
 
-#### Critérios de Aceitação:
-- Interface executa as três rotinas sem erros.  
-- Status e logs atualizam em tempo real.  
-- Navegação fluida e sem travamentos.  
+| Aba                | Função e Recursos Principais                                                                                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Credenciais**    | Autenticação com e-mail e senha da corretora. Botão **“Conectar”** inicia sessão e, após sucesso, oculta os campos. Botão **“Desconectar”** restaura o estado.                              |
+| **Pipeline**       | Parâmetros únicos do pipeline: Par, Timeframe, Dias (histórico) e Janela SR. Inclui botões empilhados: **Extração**, **Transformação**, **Carga**, **Pipeline Completo** e **Desconectar**. |
+| **Exportar Dados** | Exporta candles do banco SQLite com seleção de Par, Timeframe, Dias e Features. Exibe janela nativa para o usuário escolher onde salvar o CSV.                                              |
+
+#### **Comportamento de Diretórios**
+
+* **`data/raw/`**: armazena apenas **um CSV por par/timeframe**, sobrescrevendo versões antigas.
+* **`data/transformed/`**: contém dados transformados **temporariamente**, sendo **apagados após a carga** no banco.
+* **`data/exported/`**: destino padrão para exportações manuais (ajustável pelo diálogo de salvamento).
+* **`data/market_data.db`**: banco SQLite local persistente.
+
+#### **Validações e Feedback**
+
+* Verificação automática de **colunas e estrutura de CSV** antes da transformação.
+* Tratamento explícito de pares inválidos (ex.: alerta “use USDCAD em vez de CADUSD”).
+* Logs contínuos e pop-ups de sucesso/erro em todas as operações.
+* Conexão pode ser feita com tecla **Enter** após preencher credenciais.
 
 ---
 
-### **MVP 3 – Banco de Dados e Distribuição**
+## **5. Lógica ETL (Resumo de Operações)**
 
-#### **3.1 – Persistência com SQLite**
-**Objetivo:** permitir salvamento incremental e persistente dos candles.
+### **Extração**
 
-#### Entregas:
-1. Banco local criado automaticamente:
-````
+* Recolhe dados da API conforme `par`, `timeframe`, `dias`.
+* Se já existir histórico no banco, executa **extração incremental**.
+* Salva em `data/raw/PAR_TF.csv`, sobrescrevendo arquivos antigos.
 
-data/market_data.db
+### **Transformação**
 
-```
-2. Tabelas por par/timeframe:
-```
+* Localiza automaticamente o CSV bruto.
+* Calcula indicadores técnicos (EMA7, EMA21, RSI14, SR, volatilidade).
+* Gera `data/transformed/PAR_TF.csv` (temporário).
 
-candles_EURJPY_M5
-candles_USDJPY_M1
+### **Carga**
 
-```
-3. Estrutura de campos:
-| Campo | Tipo | Descrição |
-|--------|------|------------|
-| id | INTEGER | PK |
-| timestamp | TEXT | UTC |
-| open | REAL | Abertura |
-| high | REAL | Máxima |
-| low | REAL | Mínima |
-| close | REAL | Fechamento |
-| volume | REAL | Volume |
-| extracao_id | TEXT | Identificador da sessão |
+* Lê o CSV transformado e executa **UPSERT incremental** no SQLite.
+* Após a carga, limpa automaticamente `data/transformed/`.
 
-4. Módulo `db_manager.py`:
-- `init_db()` – inicializa banco.  
-- `save_candles()` – grava incrementalmente.  
-- `get_last_timestamp()` – busca último registro.  
-- `export_to_csv()` – exporta dataset.  
+### **Pipeline Completo**
 
-5. Aba “Banco de Dados” na GUI:
-- Lista de tabelas disponíveis.  
-- Contagem de registros.  
-- Botões: *Exportar CSV*, *Abrir pasta*, *Limpar tabela*.  
+* Executa **Extração → Transformação → Carga** em sequência.
+* Apresenta logs e pop-up de conclusão.
+* Bloqueia execução se algum estágio anterior falhar.
 
-#### Critérios de Aceitação:
-- Inserções incrementais sem duplicatas.  
-- Exportação funcional via interface.  
-- Consultas instantâneas (< 1s).  
+### **Exportar Dados**
+
+* Lê do banco `data/market_data.db`.
+* Permite escolher Features e período (em dias).
+* Abre diálogo nativo para o usuário selecionar onde salvar o arquivo CSV.
 
 ---
 
-#### **3.2 – Empacotamento e Distribuição**
-**Objetivo:** criar executáveis autônomos para distribuição local.
+## **6. Persistência e Banco de Dados**
 
-#### Entregas:
-- **macOS:** `ETL_de_Mercado.app` via Py2App  
-- **Windows/Linux:** `ETL_de_Mercado.exe` via PyInstaller  
-- Inclusões:
-- Ícone, assets e `.env`  
-- Banco SQLite integrado  
-- Criação automática de pastas `data/` no primeiro uso  
+| Tabela             | Finalidade                   | Principais Campos                                                        |
+| ------------------ | ---------------------------- | ------------------------------------------------------------------------ |
+| `candles`          | Armazena candles brutos      | pair, timeframe_s, ts, abertura, máxima, mínima, fechamento, volume      |
+| `candles_features` | Armazena dados transformados | pair, timeframe_s, ts, ema7, ema21, rsi14, volatilidade, sr_high, sr_low |
+| `extractions`      | Registro de execuções ETL    | run_id, pair, timeframe_s, from_ts, to_ts, rows_saved, created_at        |
 
-#### Critérios de Aceitação:
-- Execução com duplo clique.  
-- Sem necessidade de instalação de dependências externas.  
-- Logs e banco persistentes entre sessões.  
+**Funções principais (`db_manager.py`):**
 
----
-
-## **5. Requisitos Não Funcionais**
-
-| Categoria | Requisito |
-|------------|------------|
-| **Código** | Seguir padrão PEP8 e docstrings completas |
-| **Compatibilidade** | macOS, Windows e Linux |
-| **Operação** | Offline após autenticação inicial |
-| **Logs** | Padronizados e legíveis |
-| **Tolerância a Falhas** | Tentativas automáticas de reconexão em erros de rede |
-| **Performance** | Processamento em < 5 min para 300 dias M5 |
-| **Segurança** | Credenciais armazenadas apenas localmente (.env) |
+* `init_db()` – inicializa banco e tabelas.
+* `get_conn()` – fornece conexão segura (modo WAL).
+* `upsert_candles()` – inserção incremental sem duplicatas.
+* `get_last_timestamp()` – timestamp máximo para controle incremental.
+* `export_to_csv()` – exporta datasets filtrados, integrando features.
 
 ---
 
-## **6. Cronograma Iterativo**
+## **7. Requisitos Não Funcionais**
 
-| Fase | Entregas Principais | Duração Estimada |
-|------|----------------------|------------------|
-| MVP 1 | Pipeline CLI completa | 2 semanas |
-| MVP 2 | Interface gráfica integrada | 3 semanas |
-| MVP 3.1 | Banco de dados SQLite | 2 semanas |
-| MVP 3.2 | Empacotamento final | 1 semana |
-
----
-
-## **7. Critérios de Sucesso**
-
-- Aplicação extrai, transforma e armazena dados de qualquer ativo disponível.  
-- Interface intuitiva e estável, acessível a usuários sem experiência técnica.  
-- Pipeline ETL automatizada, testável e modular.  
-- Banco de dados local persistente e exportável.  
-- Aplicação distribuível sem dependências externas.  
+| Categoria       | Requisito                                            |
+| --------------- | ---------------------------------------------------- |
+| Código          | Conformidade PEP8 e modularidade                     |
+| Compatibilidade | macOS, Windows e Linux                               |
+| Performance     | < 5 minutos para 300 dias (timeframe M5)             |
+| Segurança       | Credenciais locais (.env) e ocultação na GUI         |
+| UX              | Tema escuro responsivo com destaque laranja          |
+| Robustez        | Validação de dados, logs contínuos e rollback seguro |
+| Portabilidade   | Empacotamento autônomo com PyInstaller / Py2App      |
 
 ---
 
+## **8. Cronograma de Entregas**
 
-## **8. Encerramento**
-
-Este documento formaliza a visão técnica, os objetivos e as entregas do **ETL de Mercado**, garantindo rastreabilidade e clareza entre desenvolvimento, testes e implantação.  
-Serve como **referência de engenharia e gestão técnica**, norteando a evolução futura do produto e suas integrações com sistemas analíticos.
+| Fase  | Entrega Principal                  | Duração   |
+| ----- | ---------------------------------- | --------- |
+| MVP 1 | CLI modular e banco SQLite         | 2 semanas |
+| MVP 2 | GUI completa (tema preto/laranja)  | 3 semanas |
+| MVP 3 | Persistência final + empacotamento | 2 semanas |
 
 ---
+
+## **9. Critérios de Sucesso**
+
+* Pipeline ETL executável ponta a ponta via CLI e GUI.
+* Armazenamento incremental sem duplicação.
+* Exportação flexível e interface responsiva.
+* Logs e alertas em todas as etapas.
+* Estrutura modular e reutilizável para novos projetos.
+
+---
+
+## **10. Encerramento**
+
+Esta versão **2.2** consolida a **arquitetura final e estável** do *ETL de Mercado*, unindo robustez técnica e interface fluida em um pipeline modular e automatizado.
+O projeto reflete a maturidade do ciclo ETL, com controle completo de extração, transformação, carga e exportação — pronto para empacotamento e uso profissional.
+
+

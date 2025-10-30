@@ -1,29 +1,17 @@
-# Python / build
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
-*.egg-info/
-dist/
-build/
-
-# Virtual env
+*.so
+.DS_Store
 venv/
-.env
-
-# Dados locais
-data/raw/
-data/transformed/
-
-# VS Code
 .vscode/
-
-# macOS
-.DS_Store
-.DS_Store
-venv/
-__pycache__/
-*.pyc
-data/raw/
-data/transformed/
-data/*.db
+.idea/
+.env
+data/market_data.db
+data/**/*.csv
+build/
+dist/
+*.egg-info/
+*.spec
+assets/icone.iconset/
