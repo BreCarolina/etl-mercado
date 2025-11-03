@@ -3,10 +3,10 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "extrair-transformar-dados"
-version = "0.1.0"
-description = "Pipeline de extração e transformação de dados de mercado"
-authors = [{ name = "Carol Brescowitt" }]
+name = "etl-mercado"
+version = "0.3.1"
+description = "ETL de Mercado: extração, transformação, carga (SQLite/WAL) e exportação CSV"
+authors = [{ name = "Carolina Brescowitt" }]
 license = { text = "MIT" }
 requires-python = ">=3.12"
 readme = "Readme.md"
@@ -15,11 +15,12 @@ dependencies = [
   "pandas>=2.2.3",
   "numpy>=2.1.2",
   "tqdm>=4.67.1",
-  "streamlit>=1.39.0",
+  "PySide6>=6.7.0",
 ]
 
 [project.scripts]
-etd = "cli:main_cli"
+etl-mercado-cli = "cli:main_cli"
+etl-mercado-gui = "gui:main"
 
 [tool.setuptools]
 # Inclui módulos soltos (sem __init__.py)
