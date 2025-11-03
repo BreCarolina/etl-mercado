@@ -15,3 +15,7 @@ dist/
 *.egg-info/
 *.spec
 assets/icone.iconset/
+
+# builds
+*.zip
+dist/
