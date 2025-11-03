@@ -61,6 +61,10 @@ try:
     if pkg_name == "iqoptionaapi":
         import iqoptionaapi.stable_api as _iqmod
     else:
+        from iqoptionaapi.stable_api import IQ_Option
+        import iqoptionaapi.stable_api as _iqmod
+    else:
+        from iqoptionapi.stable_api import IQ_Option
         import iqoptionapi.stable_api as _iqmod
     print(f"[INFO] IQ Option API carregada de: {_iqmod.__file__}", flush=True)
 except Exception as e:
