@@ -1,3 +1,18 @@
+# --- IQOption API import shim ---
+import sys
+try:
+    import iqoptionaapi as _iqpkg
+    sys.modules.setdefault('iqoptionapi', _iqpkg)
+    from iqoptionaapi.stable_api import IQ_Option
+    IQAPI_PACKAGE = 'iqoptionaapi'
+except Exception:
+    try:
+        from iqoptionapi.stable_api import IQ_Option
+        IQAPI_PACKAGE = 'iqoptionapi'
+    except Exception as e:
+        raise ImportError(f"Falha ao importar IQ_Option. Detalhe: {e}")
+# --- end shim ---
+
 # -*- coding: utf-8 -*-
 """
 extrair_dados.py — Extrai candles da IQ Option e salva em data/raw.
@@ -44,6 +59,8 @@ if str(ROOT) not in sys.path:
 pkg_name = "iqoptionaapi" if (ROOT / "iqoptionaapi").is_dir() else "iqoptionapi"
 try:
     if pkg_name == "iqoptionaapi":
+        import iqoptionaapi.stable_api as _iqmod
+    else:
         from iqoptionaapi.stable_api import IQ_Option
         import iqoptionaapi.stable_api as _iqmod
     else:
