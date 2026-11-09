@@ -1,3 +1,8 @@
+# ## Status do projeto
+
+MVP de Engenharia de Dados com interface desktop em desenvolvimento. A transformação, a carga no SQLite e a exportação para CSV foram validadas separadamente com dados simulados. Repetir a carga não gerou duplicatas.
+
+Antes de apresentar, falta corrigir a inicialização e o empacotamento, definir como os indicadores serão armazenados e validar uma demonstração completa com um CSV de exemplo.
 
 
 # ETL de Mercado
